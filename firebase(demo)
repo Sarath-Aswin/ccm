@@ -12,4 +12,29 @@ service cloud.firestore {
 
 
 .......................................................
+TERMINAL
+
+npm create vite@latest todo-app -- --template react
+cd todo-app
+npm install
+npm install firebase
+
+
+npm install -g firebase-tools
+firebase login
+firebase init hosting
+npm run build
+firebase deploy
+......................................................
+
+
+
+HOSTING SETUP
+.............
+
+dist
+y
+n
+n
+
 
