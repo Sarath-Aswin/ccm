@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Todo App with Dropbox</title>
+</head>
+<body>
+    <h1>Todo App</h1>
+    
+    <div>
+        <input type="text" id="todoInput" placeholder="Enter todo">
+        <button onclick="addTodo()">Add Todo</button>
+    </div>
+    
+    <div>
+        <button onclick="loadTodos()">Load from Dropbox</button>
+        <button onclick="saveTodos()">Save to Dropbox</button>
+    </div>
+    
+    <div id="todoList"></div>
+    <div id="errorMessage" style="color: red;"></div>
+
+    <script>
+        let todos = [];
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function clearError() {
+            document.getElementById('errorMessage').textContent = '';
+        }
+
+        function addTodo() {
+            clearError();
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+            
+            if (text) {
+                // Make sure todos is always an array
+                if (!Array.isArray(todos)) {
+                    todos = [];
+                }
+                
+                todos.push({
+                    id: Date.now(),
+                    text: text,
+                    completed: false
+                });
+                input.value = '';
+                renderTodos();
+            }
+        }
+
+        function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = !todo.completed;
+                renderTodos();
+            }
+        }
+
+        function deleteTodo(id) {
+            todos = todos.filter(t => t.id !== id);
+            renderTodos();
+        }
+
+        function renderTodos() {
+            const list = document.getElementById('todoList');
+            list.innerHTML = '';
+            
+            if (!Array.isArray(todos) || todos.length === 0) {
+                list.innerHTML = '<p>No todos yet. Add some todos or load from Dropbox.</p>';
+                return;
+            }
+            
+            todos.forEach(todo => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id})">
+                    <span style="${todo.completed ? 'text-decoration: line-through' : ''}">${todo.text}</span>
+                    <button onclick="deleteTodo(${todo.id})">Delete</button>
+                    <br>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function loadTodos() {
+            clearError();
+            try {
+                const response = await fetch('http://localhost:5000/api/todos');
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    // If response has error property
+                    throw new Error(data.error || 'Failed to load todos');
+                }
+                
+                // Ensure we always have an array
+                if (Array.isArray(data)) {
+                    todos = data;
+                    renderTodos();
+                    alert('Todos loaded from Dropbox!');
+                } else {
+                    throw new Error('Invalid data format received from server');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+                console.error('Load error:', error);
+                // Reset to empty array on error
+                todos = [];
+                renderTodos();
+            }
+        }
+
+        async function saveTodos() {
+            clearError();
+            try {
+                // Ensure todos is an array before saving
+                if (!Array.isArray(todos)) {
+                    todos = [];
+                }
+                
+                const response = await fetch('http://localhost:5000/api/todos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ todos })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to save todos');
+                }
+                
+                if (result.success) {
+                    alert('Todos saved to Dropbox!');
+                } else {
+                    throw new Error(result.error || 'Unknown error saving todos');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+                console.error('Save error:', error);
+            }
+        }
+
+        // Load todos when page loads
+        window.onload = function() {
+            // Initialize as empty array
+            todos = [];
+            renderTodos();
+            loadTodos();
+        };
+
+        // Enter key to add todo
+        document.getElementById('todoInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+    </script>
+</body>
+</html>
