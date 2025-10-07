@@ -1,0 +1,70 @@
+import express from 'express';
+import cors from 'cors';
+import { Dropbox } from 'dropbox';
+
+const app = express();
+const PORT = 5000;
+
+app.use(cors());
+app.use(express.json());
+
+// REPLACE THIS WITH YOUR ACTUAL DROPBOX ACCESS TOKEN
+const DROPBOX_ACCESS_TOKEN ='sl.u.AGB9RehTaFqyTwVI_uccmY_y8_LWJK5V9xyQxeelKr-g_HiNwwkkBXKyQ_wNrO4Pz8FPAYim9xNzYLwUYKRkj57V_yJYvaXMY-113f9dgdpB5L5OSiZpDDH4b84OZiL_amJ9KkfKt0vHv3CXAS1luHO35o96myv98LcaH1WMd1NrV3L4ilMBznA9sbplJJhfX1I_P6ff-NPxqnm5HVb6mUb2KuxXiNdDmYWtteG-rvD-EYH_KHA7mbESQHqzmT1s4h0TDpyIsGoXSoQ74iLKE3qfpx9LrUQR_SWJaX-UG6BshRqsPL_w3fwDt17PHKdlVcFC4AlH99J-GrR96RbyOHO1n638zUXOI02tkRpN3f4ib8y6afGGi3NhuaTU_qdm6EUTvF-qGDjcx9aR0Y13oAppRTBDNx6L6bDbYW8WUUxzPq-24LCTnudhCx9jPkrv1Boi_E9rapF624u7TbdZgwlsiJlFJLMQYkAZd2EwU6-f7wc1943NMC2VAZmwCrnf2Sg05UhALqufiH4vGTEwzCwM2phsXav7eVnYAVA4oE4Wf5V7i8lJXrot3vi02GCZwzWj_AmOiGr4olTDgNFQLPlEnyTkZxr37UhzX4A5ACtm-BRaWNPVuLso0f32l2NzvwbjnCBiEzrRiMAUvygDgGoYyGe1BWV0oH0a5uaWXAHh1Hm3aXQAoBFXIQ-E1CWau78uFfrL1VwDM-OwFHoUJP3zS2N6ESdTjlvEsSUn39ODrxz3FH9qaAngDSidw_5QMT-Oe_qn2oiJQ7rsxq4x5kBk7cXl8B4hqb2aPva_aJqfDJtsSpowf3D-e1iQMPOsPCWD6vyFjIhgFLBhtGrRpCFq_5cC5S9gCs7nEDSAMOYPWRdYwM2rFtDIbCI8xapY-EGclCWgLtR-F7uIUYSB2xF-TWcCSyCtxTvk8QzJ0HMnrp96sO6sMVDnyEr32cUVPMgnOhjhhvgT2HEfS4VwCNRVPF1J1A4TVVKNX02WxzRtHph-N_O3w9aEb9SX0N6qdQUjkrgqfGhnCfEv5qFRLdb_W9cDBXUJIwYeDQEI4zpsinsuvTWr5h2iznbY-lz3ripCLgCo5-ha4YicczMcdAjymoJ2o11FiUH_n8aHSUhwNF7bovWb7eCusD6DYnAV4G399a1rPTQdOX5vASl6Fn5FtlJE5zQbngMpU7Twr3ti65UJ37KHyuPe2nWAAhEF2ZHlIq-_BJw4SUX-EG_rkdmCWYmMZkqD9g2VTKLuP9KNJgaUJTbC4nvGBzTt-WfGXXufUTzDjdTbWZyCc7EK8Hf_jEbDXkg0LKBA-tzKP4CGuhSLqP_DeoPlhaPR67AsgmsocNdD-hRPd-XFyaXPQe9KqV1mfmHsEp7UxvFGsI7_Wy5zolpJr8oAXWENptio-vboRpluV6MbAvoM1LLlCnIYHFmZ4Bw1reObMiiZdjj6IQ'
+
+const dbx = new Dropbox({ 
+    accessToken: DROPBOX_ACCESS_TOKEN 
+});
+
+const TODO_FILE_PATH = '/todos.json';
+
+// Get all todos from Dropbox
+app.get('/api/todos', async (req, res) => {
+    try {
+        console.log('Fetching todos from Dropbox...');
+        const response = await dbx.filesDownload({
+            path: TODO_FILE_PATH
+        });
+        
+        const content = response.result.fileBinary.toString();
+        const todos = JSON.parse(content);
+        console.log('Loaded todos:', todos);
+        res.json(todos);
+    } catch (error) {
+        console.log('Error loading todos:', error);
+        if (error.status === 409) {
+            // File doesn't exist - return empty array
+            res.json([]);
+        } else {
+            res.status(500).json({ error: error.message });
+        }
+    }
+});
+
+// Save todos to Dropbox
+app.post('/api/todos', async (req, res) => {
+    try {
+        console.log('Saving todos to Dropbox...', req.body.todos);
+        const { todos } = req.body;
+        
+        await dbx.filesUpload({
+            path: TODO_FILE_PATH,
+            contents: JSON.stringify(todos, null, 2),
+            mode: { '.tag': 'overwrite' }
+        });
+        
+        res.json({ success: true, message: 'Todos saved to Dropbox' });
+    } catch (error) {
+        console.log('Error saving todos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Root endpoint to test if server is running
+app.get('/', (req, res) => {
+    res.json({ message: 'Todo backend server is running' });
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log('Make sure your Dropbox access token is correctly set!');
+});
